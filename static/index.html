@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>猫娘IP地址查询</title>
+    <link href="./main.css" rel="stylesheet" />
+</head>
+<body>
+
+    <div class="container">
+
+        <div class="cat-ear left float-animation">🐱</div>
+        <div class="cat-ear right float-animation">🐾</div>
+
+        <header class="header">
+            <h1 class="main-title">猫娘IP地址查询</h1>
+            <p class="ip-badge">
+                您的 IP 地址为 <span id="current-ip">正在获取喵...</span>
+            </p>
+        </header>
+
+        <main>
+            <div class="search-area">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="ip-input" placeholder="请输入要查询的 IP 地址喵~" class="search-input">
+                </div>
+                <button id="search-btn" class="search-btn">查询喵 🐾</button>
+            </div>
+
+            <div class="result-card">
+                <ul class="result-list">
+                    <li class="result-item">
+                        <div class="item-label">
+                            <span class="item-icon">🌍</span>
+                            <span class="item-text">国家</span>
+                        </div>
+                        <span id="res-country" class="item-value">-</span>
+                    </li>
+                    <li class="result-item">
+                        <div class="item-label">
+                            <span class="item-icon">🗺️</span>
+                            <span class="item-text">省份</span>
+                        </div>
+                        <span id="res-province" class="item-value">-</span>
+                    </li>
+                    <li class="result-item">
+                        <div class="item-label">
+                            <span class="item-icon">🏙️</span>
+                            <span class="item-text">城市</span>
+                        </div>
+                        <span id="res-city" class="item-value">-</span>
+                    </li>
+                    <li class="result-item">
+                        <div class="item-label">
+                            <span class="item-icon">🏢</span>
+                            <span class="item-text">ISP 运营商</span>
+                        </div>
+                        <span id="res-isp" class="item-value">-</span>
+                    </li>
+                    <li class="result-item">
+                        <div class="item-label">
+                            <span class="item-icon">🧭</span>
+                            <span class="item-text">经纬度</span>
+                        </div>
+                        <span id="res-latlon" class="item-value">-</span>
+                    </li>
+                </ul>
+
+                <div class="api-section">
+                    <button id="api-info-btn" class="api-btn">
+                        <span class="api-icon">💡</span> 开发者 API 说明
+                    </button>
+                </div>
+                    <div class="footer-info">
+                    <a href="https://github.com/Chocola-X/NekoIPinfo" target="_blank" class="footer-link">
+                        <span class="footer-icon">🐙</span> GitHub：NekoIPinfo
+                    </a>
+                    <a href="https://www.nekopara.uk" target="_blank" class="footer-link">
+                        <span class="footer-icon">🐈</span>作者：GTX690战术核显卡导弹
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="api-modal" class="modal-container">
+        <div id="api-modal-overlay" class="modal-overlay"></div>
+
+        <div id="api-modal-content" class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">🛠️ API 调用说明</h2>
+                <button id="close-modal-top" class="close-btn-top">&times;</button>
+            </div>
+
+            <div class="modal-body">
+                <p>您可以通过发送 <code class="code-tag">GET</code> 请求到我们的接口来获取 IP 详细信息喵：</p>
+                <div class="api-url-box">
+                    GET <span id="api-host-display">https://ip.nekopara.uk</span>/ipinfo?ip=<span style="color:#f43f5e;">{ip}</span>
+                </div>
+                <p style="font-weight: bold; color: #374151;">📦 返回数据格式示例 (JSON):</p>
+                <pre class="json-box">
+{
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "country": "美国",
+    "province": "加利福尼亚州",
+    "city": "圣克拉拉",
+    "isp": "阿里云",
+    "latitude": "37.355701",
+    "longitude": "-121.955002"
+  }
+}</pre>
+            </div>
+            <div class="modal-footer">
+                <button id="close-modal-bottom" class="close-btn-bottom">我知道了喵 🐾</button>
+            </div>
+        </div>
+</div> <div id="alert-modal" class="modal-container">
+        <div id="alert-modal-overlay" class="modal-overlay"></div>
+
+        <div id="alert-modal-content" class="modal-content" style="max-width: 24rem; text-align: center;">
+            <div class="modal-header" style="justify-content: center; margin-bottom: 1rem;">
+                <h2 class="modal-title">哎呀喵！</h2>
+            </div>
+
+            <div class="modal-body" style="font-size: 1.125rem; font-weight: bold; color: #db2777;">
+                <p>请输入要查询的 IP 地址喵！</p>
+            </div>
+
+            <div class="modal-footer" style="margin-top: 1.5rem;">
+                <button id="close-alert-btn" class="close-btn-bottom">知道啦 🐾</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const currentIpSpan = document.getElementById('current-ip');
+    const searchBtn = document.getElementById('search-btn');
+    const ipInput = document.getElementById('ip-input');
+
+    // 结果节点
+    const resCountry = document.getElementById('res-country');
+    const resProvince = document.getElementById('res-province');
+    const resCity = document.getElementById('res-city');
+    const resIsp = document.getElementById('res-isp');
+    const resLatlon = document.getElementById('res-latlon');
+
+    // 弹窗相关节点
+    const apiModal = document.getElementById('api-modal');
+    const apiInfoBtn = document.getElementById('api-info-btn');
+    const closeModalTop = document.getElementById('close-modal-top');
+    const closeModalBottom = document.getElementById('close-modal-bottom');
+    const apiModalOverlay = document.getElementById('api-modal-overlay');
+
+    const alertModal = document.getElementById('alert-modal');
+    const alertModalOverlay = document.getElementById('alert-modal-overlay');
+    const closeAlertBtn = document.getElementById('close-alert-btn');
+
+    // 弹窗控制逻辑
+    const openApiModal = () => apiModal.classList.add('active');
+    const closeApiModal = () => apiModal.classList.remove('active');
+
+    //获取显示域名的元素
+    const apiHostDisplay = document.getElementById('api-host-display');
+    //动态更新为当前站点的完整 origin (例如 https://example.com)
+    if (apiHostDisplay) {
+        apiHostDisplay.textContent = window.location.origin;
+    }
+
+    apiInfoBtn.addEventListener('click', openApiModal);
+    closeModalTop.addEventListener('click', closeApiModal);
+    closeModalBottom.addEventListener('click', closeApiModal);
+    apiModalOverlay.addEventListener('click', closeApiModal);
+
+    const showAlert = (msg = "请输入要查询的 IP 地址喵！") => {
+        // 让提示弹窗支持动态文字
+        alertModal.querySelector('.modal-body p').textContent = msg;
+        alertModal.classList.add('active');
+    };
+    const hideAlert = () => alertModal.classList.remove('active');
+    closeAlertBtn.addEventListener('click', hideAlert);
+    alertModalOverlay.addEventListener('click', hideAlert);
+
+    // ================= 核心：向 Go 后端请求数据的统一函数 =================
+    const fetchIpData = (ip = '') => {
+        // 界面变为加载状态
+        searchBtn.innerHTML = '查询中... 🐾';
+        searchBtn.disabled = true;
+
+        // 构建请求 URL：有 IP 就带查询参数，没有直接访问 /ipinfo
+        const url = ip ? `/ipinfo?ip=${ip}` : '/ipinfo';
+
+        fetch(url)
+            .then(response => response.json())
+            .then(json => {
+                if (json.code === 200) {
+                    const data = json.data;
+
+                    // 如果是无参数请求（页面首次加载），更新顶部显示的访客自己 IP
+                    if (!ip) {
+                        currentIpSpan.textContent = data.ip;
+                    } else {
+                        // 如果是主动搜索别人的 IP，给予彩蛋反馈
+                        ipInput.value = '';
+                        ipInput.placeholder = '查询成功了喵！继续输入吧~';
+                    }
+
+                    // 更新下方结果面板
+                    resCountry.textContent = data.country || '-';
+                    resProvince.textContent = data.province || '-';
+                    resCity.textContent = data.city || '-';
+                    resIsp.textContent = data.isp || '-';
+                    resLatlon.textContent = `${data.latitude || '-'}, ${data.longitude || '-'}`;
+                } else {
+                    // 后端返回了非 200 的报错信息（比如非法 IP）
+                    showAlert(json.msg);
+                }
+            })
+            .catch(error => {
+                console.error('API Error:', error);
+                showAlert('网络请求失败了喵，请检查接口服务 T_T');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                searchBtn.innerHTML = '查询喵 🐾';
+                searchBtn.disabled = false;
+            });
+    };
+
+    // 1. 🌟 页面刚加载时，不传参数调用一次，自动获取并展示访客的信息 🌟
+    fetchIpData();
+
+    // 2. 点击查询按钮逻辑
+    searchBtn.addEventListener('click', () => {
+        const ipToSearch = ipInput.value.trim();
+        if (!ipToSearch) {
+            showAlert("请输入要查询的 IP 地址喵！");
+            return;
+        }
+        fetchIpData(ipToSearch); // 带参查询
+    });
+
+    // 3. 支持回车查询
+    ipInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            searchBtn.click();
+        }
+    });
+});
+    </script>
+</body>
+</html>
