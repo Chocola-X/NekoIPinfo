@@ -118,7 +118,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25.x
+        go-version: '1.25.x'
         
     # 安装 Windows C 交叉编译器 (MinGW)
     - name: Install MinGW
