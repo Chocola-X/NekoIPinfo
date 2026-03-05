@@ -1,0 +1,61 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Publish
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        # 同时编译 AMD64 (普通服务器) 和 ARM64 (甲骨文云、树莓派等)
+        goarch: [amd64, arm64]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 安装 QEMU 模拟器，这样 Ubuntu 就能运行 ARM64 的 Docker 容器了
+    - name: Set up QEMU
+      if: matrix.goarch == 'arm64'
+      uses: docker/setup-qemu-action@v3
+
+    # 拉起 Alpine 容器进行全静态编译
+    - name: Build Binary in Alpine
+      run: |
+        # --platform 指定拉取对应架构的 Alpine 镜像
+        docker run --rm \
+          --platform linux/${{ matrix.goarch }} \
+          -v ${{ github.workspace }}:/app \
+          -w /app \
+          golang:1.21-alpine \
+          sh -c "apk add --no-cache gcc musl-dev && \
+                 CGO_ENABLED=1 GOOS=linux GOARCH=${{ matrix.goarch }} \
+                 go build -ldflags='-linkmode external -extldflags -static -s -w' -o neko-ip-api main.go"
+
+    - name: Package files
+      run: |
+        DIR_NAME="NekoIPinfo-linux-${{ matrix.goarch }}"
+        mkdir -p $DIR_NAME
+        
+        # 移动刚刚编译出的纯静态二进制文件
+        mv neko-ip-api $DIR_NAME/
+        
+        # 拷贝静态资源和文档
+        cp -r static db_example README.md $DIR_NAME/
+        
+        # 打包成 ZIP
+        zip -r $DIR_NAME.zip $DIR_NAME
+
+    - name: Upload Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: NekoIPinfo-linux-${{ matrix.goarch }}.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
