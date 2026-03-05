@@ -4,10 +4,11 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Author Blog](https://img.shields.io/badge/Blog-nekopara.uk-ff69b4.svg)](https://www.nekopara.uk)
 
-**NekoIPinfo** 是一个专为极致性能而生的开源 IPv4 归属地查询服务。
+**NekoIPinfo** 是一个专为极致性能而生的开源 IPv4 归属地查询服务。带有一点点可爱的猫娘风格喵 🐱~
+
 它采用 **Nginx 静态托管 + Go 纯净 API + SQLite B-Tree 索引** 的现代化架构，专为低配置（如 2vCPU 1GB RAM）轻量云服务器深度优化。
 
-经测试，在老旧的双核 CPU （测试型号为 i5-2410M ，性能与主流轻量服务器类似）上也能扛住 **6000+ QPS**，内存占用常年保持在 **40MB** 以下，是小微型服务器构建 IP 查询服务的究极解法喵！🚀
+经测试，在老旧的双核 CPU （测试型号为 i5-2410M ，性能与主流轻量服务器类似）上也能扛住 **5000+ QPS**，内存占用保持在 **40MB** 以下（默认不开启数据库内存缓存的情况下），是小微型服务器构建 IP 查询服务的究极解法喵！🚀
 
 ---
 
@@ -15,7 +16,7 @@
 
 你可以访问我搭建的服务来看看这个项目的效果如何喵～
 
-**我的查询实例：**: [NekoIPinfo Demo](https://ip.nekopara.uk)
+**我的查询实例：** [NekoIPinfo Demo](https://ip.nekopara.uk)
 
 
 ---
@@ -37,6 +38,58 @@
 
 ---
 
+## 💻 API 调用说明
+
+后端提供纯净的 RESTful API 接口，返回标准 JSON 格式数据。
+
+### 1. 查询指定 IP
+**GET** `/ipinfo?ip={IPv4地址}`
+
+**请求示例：** `/ipinfo?ip=8.8.8.8`
+**返回响应：**
+```json
+{
+    "code": 200,
+    "msg": "success",
+    "data": {
+        "ip": "8.8.8.8",
+        "country": "美国",
+        "province": "加利福尼亚州",
+        "city": "圣克拉拉",
+        "isp": "Google",
+        "latitude": "37.386052",
+        "longitude": "-122.083851"
+    }
+}
+
+```
+
+### 2. 获取访客自身 IP (自动检测)
+
+如果在请求时不传递 `ip` 参数，API 将自动解析并返回**请求者本身**的 IP 信息！
+**GET** `/ipinfo`
+
+**Response:**
+
+```json
+{
+    "code":200,
+    "msg":"success",
+    "data":{
+        "ip":"119.8.185.128",
+        "country":"新加坡",
+        "province":"新加坡",
+        "city":"",
+        "isp":"huawei.com",
+        "latitude":"1.352083",
+        "longitude":"103.819836"
+    }
+}
+
+```
+
+---
+
 ## 🚀 部署指南
 
 ### 1. 数据库准备与性能优化
@@ -53,13 +106,36 @@ CREATE TABLE ip_info (
 
 ```
 
-**🔥 关键步骤（开启性能外挂）：**
-导入数据后，请务必建立索引。没有这行命令，性能将下降 80 倍以上：
+**插入数据：**
+```sql
+INSERT INTO ip_info (network_start, network_end, ip_info_json)
+VALUES (2163295488, 2163295743, '{"country":"美国","province":"俄亥俄州","city":"辛辛那提","isp":"ntt.com","latitude":"39.103118","longitude":"-84.512019"}');
+```
 
+字段若无有效值，将以空字符串 `""` 填充，确保 JSON 结构稳定。
+
+示例数据表样式：
+
+| `network_start` (整数) | （→ 起始 IP） | `network_end` (整数) | （→ 结束 IP） | `ip_info_json` (TEXT) |
+|------------------------|----------------------|----------------------|--------------------|------------------------|
+| `0`                    | `0.0.0.0`            | `16777215`           | `0.255.255.255`    | `{"country":"特殊地址","province":"本网络","city":"This Network","isp":"This Network","latitude":"0","longitude":"0"}` |
+| `16777216`             | `1.0.0.0`            | `16777471`           | `1.0.0.255`        | `{"country":"CLOUDFLARE.COM","province":"CLOUDFLARE.COM","city":"","isp":"","latitude":"","longitude":""}` |
+| `16842752`             | `1.0.1.0`            | `16843519`           | `1.0.3.255`        | `{"country":"中国","province":"福建","city":"","isp":"电信","latitude":"25.908899","longitude":"118.125809"}` |
+| `16843776`             | `1.0.4.0`            | `16845823`           | `1.0.7.255`        | `{"country":"澳大利亚","province":"维多利亚州","city":"墨尔本","isp":"gtelecom.com.au","latitude":"-37.813627","longitude":"144.963057"}` |
+| `16846848`             | `1.0.8.0`            | `16850943`           | `1.0.15.255`       | `{"country":"中国","province":"广东","city":"","isp":"电信","latitude":"22.858749","longitude":"113.419327"}` |
+
+
+
+**🔥 关键步骤（开启性能外挂）：**
+导入数据后，请务必建立索引：
 ```sql
 CREATE INDEX idx_network_start ON ip_info (network_start);
 
 ```
+
+**⚠️ 警告：** 没有这行命令，性能将下降 500 倍以上，后果很严重喵！
+
+> **💡 数据来源提示：** 你可以使用 [DB-IP](https://db-ip.com/) 或 [MaxMind](https://dev.maxmind.com/geoip) 的免费离线库，将其转换为上述格式写入 SQLite。本项目 `db_example` 文件夹中提供了一个内网 IP 的示例库 `lan_sample.db` 和一个空库模板 `empty.db` 供你测试喵。
 
 ### 2. 后端编译与启动
 
@@ -75,12 +151,15 @@ go build -o neko-ip-api main.go
 ./neko-ip-api -port 8080 -db ./ip_info.db
 
 ```
+
 当然，也可以直接下载编译好的二进制文件直接启动。
 
 **参数说明：**
 
 * `-port`: 监听端口（默认 8080）
 * `-db`: 数据库文件路径（默认 ./ip_info.db）
+* `-mem=true`: 开启内存缓存模式，整个数据库将加载到内存，内存占用 ≈ 数据库文件大小 × 2~3 倍，请根据实际数据量评估。默认关闭
+* `-log=true`: 控制台打印输出API调用日志，方便进行API调用行为监控。默认关闭
 
 ### 3. Nginx 环境配置
 
@@ -93,8 +172,9 @@ server {
     listen 443 ssl;
     server_name ip.nekopara.uk;
     
-    set_real_ip_from 0.0.0.0/0;
-    real_ip_header X-Forwarded-For;
+    # 仅当你在使用 CDN 时开启以下两行获取真实 IP
+    # set_real_ip_from 0.0.0.0/0;
+    # real_ip_header X-Forwarded-For;
     
     # SSL证书和密钥路径
     ssl_certificate /data/certs/nekopara_uk.pem;
@@ -129,7 +209,11 @@ limit_req_zone $binary_remote_addr zone=static_limit:10m rate=50r/s;
 server {
     listen 443 ssl;
     server_name ip.nekopara.uk;
-
+    
+    # 仅当你在使用 CDN 时开启以下两行获取真实 IP
+    # set_real_ip_from 0.0.0.0/0;
+    # real_ip_header X-Forwarded-For;
+    
     # SSL证书和密钥路径
     ssl_certificate /data/certs/nekopara_uk.pem;
     ssl_certificate_key /data/certs/nekopara_uk.key;
@@ -141,7 +225,7 @@ server {
     location / {
         limit_req zone=static_limit burst=50 nodelay;
 
-        root /data/nekoipinfo/static;
+        root /var/www/nekoipinfo;
         index index.html;
         gzip on;
         gzip_types text/plain text/css application/json application/javascript;
@@ -187,6 +271,9 @@ server {
     }
 }
 ```
+
+**提示：** 如果你的服务器位于 Cloudflare 等 CDN 背后，需要在server块内设置 `set_real_ip_from 0.0.0.0/0;` 和 `real_ip_header X-Forwarded-For;`。如果你直接暴露在公网，不要进行配置，以免被伪造 IP！
+
 ---
 
 ## 🛠️ 后台常驻 (Systemd)
@@ -210,30 +297,6 @@ WantedBy=multi-user.target
 ```
 
 当然，也可以使用**TMUX**挂着服务端喵～
----
-
-## 📡 API 示例
-
-**GET** `/ipinfo?ip=1.1.1.1`
-
-**Response:**
-
-```json
-{
-  "code": 200,
-  "msg": "success",
-  "data": {
-    "ip": "1.1.1.1",
-    "country": "澳大利亚",
-    "province": "APNIC",
-    "city": "Cloudflare",
-    "isp": "APNIC Research and Development",
-    "latitude": "-33.494000",
-    "longitude": "143.210000"
-  }
-}
-
-```
 
 ---
 
