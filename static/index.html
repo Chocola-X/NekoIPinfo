@@ -149,6 +149,10 @@
     </div>
 
     <script>
+    // ====== 后端API配置 ======
+    // 如果需要指定特定的后端地址，请取消下面一行的注释并修改URL
+    window.BACKEND_API_URL = 'http://192.168.31.148:5253';
+    
     document.addEventListener('DOMContentLoaded', () => {
         const currentIpSpan = document.getElementById('current-ip');
         const searchBtn = document.getElementById('search-btn');
@@ -181,7 +185,9 @@
         const apiHostDisplay = document.getElementById('api-host-display');
         //动态更新为当前站点的完整 origin (例如 https://example.com)
         if (apiHostDisplay) {
-            apiHostDisplay.textContent = window.location.origin;
+            // 如果指定了后端URL，则显示后端URL，否则显示当前域名
+            const displayOrigin = window.BACKEND_API_URL || window.location.origin;
+            apiHostDisplay.textContent = displayOrigin;
         }
 
         apiInfoBtn.addEventListener('click', openApiModal);
@@ -204,8 +210,9 @@
             searchBtn.innerHTML = '查询中... 🐾';
             searchBtn.disabled = true;
 
-            // 构建请求 URL：有 IP 就带查询参数，没有直接访问 /ipinfo
-            const url = ip ? `/ipinfo?ip=${ip}` : '/ipinfo';
+            // 构建请求 URL：使用配置的后端地址或当前域名
+            const baseUrl = window.BACKEND_API_URL || '';
+            const url = ip ? `${baseUrl}/ipinfo?ip=${encodeURIComponent(ip)}` : `${baseUrl}/ipinfo`;
 
             fetch(url)
                 .then(response => response.json())
