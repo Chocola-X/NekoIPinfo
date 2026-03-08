@@ -1,0 +1,11 @@
+*.db
+*.mmdb
+*.csv
+/build/
+*backup/
+*changelog/
+scode
+ip_info/
+LLM*
+*test*
+*.fasthttp.br
