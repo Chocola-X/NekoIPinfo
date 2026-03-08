@@ -27,6 +27,32 @@ type Config struct {
 func Parse() *Config {
 	cfg := &Config{}
 
+	var updateFound bool
+	var updateTarget string
+	filteredArgs := make([]string, 0, len(os.Args))
+	filteredArgs = append(filteredArgs, os.Args[0])
+
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if arg == "-update" || arg == "--update" {
+			updateFound = true
+			if i+1 < len(os.Args) && !strings.HasPrefix(os.Args[i+1], "-") {
+				updateTarget = os.Args[i+1]
+				i++
+			}
+		} else if strings.HasPrefix(arg, "-update=") {
+			updateFound = true
+			updateTarget = strings.TrimPrefix(arg, "-update=")
+		} else if strings.HasPrefix(arg, "--update=") {
+			updateFound = true
+			updateTarget = strings.TrimPrefix(arg, "--update=")
+		} else {
+			filteredArgs = append(filteredArgs, arg)
+		}
+	}
+
+	os.Args = filteredArgs
+
 	flag.StringVar(&cfg.Port, "port", "8080", "API 服务监听端口")
 	flag.StringVar(&cfg.DBPath, "db", "ip_info", "Pebble 数据库路径")
 	flag.StringVar(&cfg.MemMode, "mem", "off", "内存模式: off=纯Pebble, fast=LRU缓存加速, full=全量内存")
@@ -44,12 +70,6 @@ func Parse() *Config {
 		return nil
 	})
 
-	updateStr := ""
-	flag.Func("update", "检查并更新: 无参数=自动更新, 指定版本号=强制更新到该版本", func(s string) error {
-		updateStr = s
-		return nil
-	})
-
 	flag.Parse()
 
 	for _, arg := range os.Args[1:] {
@@ -58,17 +78,8 @@ func Parse() *Config {
 		}
 	}
 
-	for _, arg := range os.Args[1:] {
-		a := strings.TrimLeft(arg, "-")
-		if a == "update" || strings.HasPrefix(a, "update=") {
-			cfg.DoUpdate = true
-			break
-		}
-	}
-
-	if cfg.DoUpdate {
-		cfg.UpdateTarget = updateStr
-	}
+	cfg.DoUpdate = updateFound
+	cfg.UpdateTarget = updateTarget
 
 	cfg.LogDays = -2
 	if logDaysStr == "" {

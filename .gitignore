@@ -8,3 +8,4 @@ scode
 ip_info/
 LLM*
 *test*
+*.fasthttp.br
